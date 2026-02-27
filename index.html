@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Processing Canvas</title>
+  <style>
+    :root {
+      --bg-0: #071221;
+      --bg-1: #0f1f39;
+      --panel: rgba(8, 17, 34, 0.78);
+      --panel-border: rgba(255, 255, 255, 0.16);
+      --text: #eef3ff;
+      --muted: rgba(238, 243, 255, 0.72);
+      --accent: #64e4d7;
+      --paper: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: "Avenir Next", "Avenir", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1000px 500px at 10% -20%, #24427f 0%, transparent 55%),
+        radial-gradient(900px 550px at 100% 120%, #0d655a 0%, transparent 58%),
+        linear-gradient(155deg, var(--bg-0), var(--bg-1));
+      overflow: hidden;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 12px;
+    }
+
+    .app {
+      width: min(1120px, 100%);
+      height: min(780px, 100%);
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.4);
+      display: grid;
+      grid-template-rows: 1fr auto;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 92px 1fr;
+    }
+
+    .rail {
+      border-right: 1px solid var(--panel-border);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .canvas-stage {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: 12px;
+      position: relative;
+      background:
+        radial-gradient(500px 260px at 100% 0%, rgba(255, 255, 255, 0.08), transparent 70%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+    }
+
+    .paper {
+      background: var(--paper);
+      border-radius: 14px;
+      box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.22),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+      transform-origin: center center;
+    }
+
+    .paper canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .dock {
+      border-top: 1px solid var(--panel-border);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .size-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .label {
+      font-size: 0.74rem;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .btn {
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 7px 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .btn:hover { background: rgba(255, 255, 255, 0.15); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.active {
+      border-color: rgba(100, 228, 215, 0.95);
+      background: rgba(100, 228, 215, 0.2);
+    }
+
+    .rail .btn {
+      width: 100%;
+      min-height: 34px;
+      padding: 8px 6px;
+      font-size: 0.74rem;
+      text-align: center;
+    }
+
+    #shortcuts-btn {
+      font-size: 0.7rem;
+      letter-spacing: 0.01em;
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .swatches {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+      white-space: nowrap;
+    }
+
+    .swatch {
+      width: 22px;
+      height: 22px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 120ms ease;
+    }
+
+    .swatch.active {
+      transform: scale(1.12);
+      border-color: #fff;
+      box-shadow: 0 0 0 2px rgba(100, 228, 215, 0.5);
+    }
+
+    .select,
+    .size,
+    .picker {
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .select {
+      padding: 6px 8px;
+      min-width: 100px;
+    }
+
+    .picker {
+      width: 32px;
+      height: 32px;
+      padding: 3px;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .size {
+      width: 150px;
+      accent-color: var(--accent);
+    }
+
+    .icon-btn {
+      min-width: 34px;
+      text-align: center;
+      padding-inline: 8px;
+    }
+
+    .canvas-zoom {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+    }
+
+    .shortcuts-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.55);
+    }
+
+    .shortcuts-modal.open {
+      display: flex;
+    }
+
+    .shortcuts-panel {
+      width: min(560px, 92vw);
+      max-height: 80vh;
+      overflow: auto;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(10, 18, 35, 0.96);
+      padding: 14px;
+    }
+
+    .shortcuts-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .shortcuts-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .shortcut-list {
+      display: grid;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .intro-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.56);
+    }
+
+    .intro-modal.open {
+      display: flex;
+    }
+
+    .intro-panel {
+      width: min(600px, 94vw);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(10, 18, 35, 0.97);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .intro-panel h2 {
+      font-size: 1rem;
+    }
+
+    .intro-panel p {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .intro-list {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.35;
+      padding-left: 16px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .intro-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .intro-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 1024px) {
+      body {
+        padding: 6px;
+      }
+
+      .app {
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+      }
+
+      .workspace {
+        grid-template-columns: 80px 1fr;
+      }
+
+      .dock {
+        gap: 8px;
+        padding: 8px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto;
+      }
+
+      .rail {
+        order: 2;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        overflow-x: auto;
+        gap: 6px;
+        border-right: none;
+        border-top: 1px solid var(--panel-border);
+        padding: 6px 8px;
+      }
+
+      .rail .btn {
+        width: auto;
+        min-width: max-content;
+        white-space: nowrap;
+        font-size: 0.72rem;
+        padding: 7px 9px;
+      }
+
+      .canvas-stage {
+        order: 1;
+        padding: 8px;
+      }
+
+      .canvas-zoom {
+        top: 8px;
+        right: 8px;
+        padding: 5px 6px;
+        gap: 4px;
+      }
+
+      .canvas-zoom .btn {
+        padding: 6px 8px;
+      }
+
+      .dock {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 8px;
+        gap: 8px;
+      }
+
+      .swatches {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        max-width: 40vw;
+      }
+
+      .size {
+        width: 120px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .dock {
+        padding: 7px;
+      }
+
+      .swatches {
+        max-width: 48vw;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="workspace">
+      <aside class="rail" aria-label="Action rail">
+        <button class="btn" id="undo-btn" type="button">Undo</button>
+        <button class="btn" id="redo-btn" type="button">Redo</button>
+        <button class="btn" id="save-btn" type="button">Save</button>
+        <button class="btn" id="clear-btn" type="button">Clear</button>
+        <button class="btn" id="reset-btn" type="button">Restart</button>
+        <button class="btn" id="shortcuts-btn" type="button">View Shortcuts</button>
+      </aside>
+      <main class="canvas-stage" id="canvas-stage">
+        <div class="paper" id="paper">
+          <canvas id="draw-canvas" aria-label="Drawing canvas"></canvas>
+        </div>
+        <div class="canvas-zoom" aria-label="Zoom controls">
+          <button class="btn" id="zoom-out-btn" type="button" aria-label="Zoom out">-</button>
+          <button class="btn" id="zoom-reset-btn" type="button">Refit</button>
+          <button class="btn" id="hand-btn" type="button" aria-label="Move tool" title="Move (H)">Move</button>
+          <button class="btn" id="zoom-in-btn" type="button" aria-label="Zoom in">+</button>
+          <span class="label" id="zoom-label">100%</span>
+        </div>
+      </main>
+    </section>
+
+    <footer class="dock">
+      <button class="btn" id="pen-btn" type="button" aria-label="Pen" title="Pen (P)">Pen</button>
+      <button class="btn" id="eraser-btn" type="button" aria-label="Eraser" title="Eraser (E)">Eraser</button>
+      <select class="select" id="palette-select" aria-label="Choose palette"></select>
+      <div class="swatches" id="swatches"></div>
+      <input class="picker" id="color-picker" type="color" value="#111111" aria-label="Color picker" />
+      <div class="size-wrap">
+        <button class="btn icon-btn" id="size-down-btn" type="button" aria-label="Decrease size">-</button>
+        <input class="size" id="size-slider" type="range" min="1" max="40" value="8" aria-label="Brush size" />
+        <button class="btn icon-btn" id="size-up-btn" type="button" aria-label="Increase size">+</button>
+        <span class="label" id="size-label">8px</span>
+      </div>
+    </footer>
+  </div>
+  <div class="shortcuts-modal" id="shortcuts-modal" aria-hidden="true">
+    <div class="shortcuts-panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="shortcuts-head">
+        <div class="shortcuts-title">Keyboard Shortcuts</div>
+        <button class="btn" id="shortcuts-close-btn" type="button" aria-label="Close shortcuts">Close</button>
+      </div>
+      <div class="shortcut-list">
+        <div><strong>P</strong> Pen</div>
+        <div><strong>E</strong> Eraser</div>
+        <div><strong>H</strong> Move tool (pan)</div>
+        <div><strong>Space</strong> Hold for temporary move</div>
+        <div><strong>[ ]</strong> Decrease / Increase brush size</div>
+        <div><strong>- / +</strong> Zoom out / in</div>
+        <div><strong>Cmd/Ctrl + Z</strong> Undo</div>
+        <div><strong>Shift + Cmd/Ctrl + Z</strong> Redo</div>
+        <div><strong>Cmd/Ctrl + S</strong> Save PNG</div>
+        <div><strong>C</strong> Clear</div>
+        <div><strong>R</strong> Restart</div>
+      </div>
+    </div>
+  </div>
+  <div class="intro-modal" id="intro-modal" aria-hidden="true">
+    <div class="intro-panel" role="dialog" aria-modal="true" aria-label="About Processing Canvas">
+      <h2>Processing Canvas</h2>
+      <p>This is a modern rebuild of my original Processing drawing sketch. It showcases real-time creative coding, responsive input handling, and app-style tooling.</p>
+      <ul class="intro-list">
+        <li>Draw with pen/eraser and color palettes</li>
+        <li>Use zoom + hand tool for detail work</li>
+        <li>Undo/redo and save your artwork as PNG</li>
+      </ul>
+      <div class="intro-actions">
+        <label class="intro-check"><input id="intro-skip" type="checkbox" /> Don't show again</label>
+        <button class="btn" id="intro-start-btn" type="button">Start Drawing</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const INTRO_STORAGE_KEY = "processing-canvas-intro-hidden-v1";
+    const BG = "#ffffff";
+    const DEFAULTS = {
+      tool: "pen",
+      color: "#111111",
+      palette: "classic",
+      size: 8,
+      zoom: 100
+    };
+
+    const PALETTES = {
+      classic: ["#111111", "#ffffff", "#ff3b30", "#ff2d55", "#ff9500", "#ffcc00", "#34c759", "#00c7be", "#0a84ff", "#5e5ce6", "#bf5af2"],
+      pastel: ["#fff8f2", "#ffd7a8", "#fff1a8", "#c8f5b5", "#b7efe5", "#b7d8ff", "#d5c7ff", "#f2c7ff", "#ffb3c1", "#ffa8c8", "#2c2a4a"],
+      earth: ["#f7efe3", "#dda15e", "#bc6c25", "#8b5e34", "#7f5539", "#b08968", "#6b8f71", "#588157", "#4f6f52", "#3d405b", "#2f241f"],
+      neon: ["#f7f7ff", "#ffbd00", "#ff5400", "#ff0054", "#ff4dff", "#8338ec", "#3a86ff", "#00bbf9", "#00f5d4", "#9ef01a", "#040404"],
+      noir: ["#f2f2f2", "#d1d5db", "#9ca3af", "#6b7280", "#4b5563", "#475569", "#374151", "#334155", "#1f2937", "#111827", "#0d0d0d"]
+    };
+
+    const state = {
+      ...DEFAULTS,
+      drawing: false,
+      panning: false,
+      spacePan: false,
+      activePointerId: null,
+      panStartClientX: 0,
+      panStartClientY: 0,
+      panStartX: 0,
+      panStartY: 0,
+      panX: 0,
+      panY: 0,
+      lastX: 0,
+      lastY: 0
+    };
+
+    const el = {
+      penBtn: document.getElementById("pen-btn"),
+      eraserBtn: document.getElementById("eraser-btn"),
+      handBtn: document.getElementById("hand-btn"),
+      zoomOutBtn: document.getElementById("zoom-out-btn"),
+      zoomResetBtn: document.getElementById("zoom-reset-btn"),
+      zoomInBtn: document.getElementById("zoom-in-btn"),
+      zoomLabel: document.getElementById("zoom-label"),
+      shortcutsBtn: document.getElementById("shortcuts-btn"),
+      shortcutsModal: document.getElementById("shortcuts-modal"),
+      shortcutsCloseBtn: document.getElementById("shortcuts-close-btn"),
+      introModal: document.getElementById("intro-modal"),
+      introSkip: document.getElementById("intro-skip"),
+      introStartBtn: document.getElementById("intro-start-btn"),
+      sizeDownBtn: document.getElementById("size-down-btn"),
+      sizeUpBtn: document.getElementById("size-up-btn"),
+      undoBtn: document.getElementById("undo-btn"),
+      redoBtn: document.getElementById("redo-btn"),
+      saveBtn: document.getElementById("save-btn"),
+      clearBtn: document.getElementById("clear-btn"),
+      resetBtn: document.getElementById("reset-btn"),
+      paletteSelect: document.getElementById("palette-select"),
+      swatches: document.getElementById("swatches"),
+      colorPicker: document.getElementById("color-picker"),
+      sizeSlider: document.getElementById("size-slider"),
+      sizeLabel: document.getElementById("size-label"),
+      stage: document.getElementById("canvas-stage"),
+      paper: document.getElementById("paper"),
+      canvas: document.getElementById("draw-canvas")
+    };
+
+    const ctx = el.canvas.getContext("2d");
+    const MAX_HISTORY = 70;
+    let history = [];
+    let redo = [];
+    let swatchNodes = [];
+
+    function syncStatus() {
+      el.sizeLabel.textContent = `${state.size}px`;
+      el.sizeSlider.value = String(state.size);
+      el.zoomLabel.textContent = `${state.zoom}%`;
+      if (state.tool === "hand" || state.spacePan) {
+        el.canvas.style.cursor = state.panning ? "grabbing" : "grab";
+      } else {
+        el.canvas.style.cursor = state.tool === "eraser" ? "cell" : "crosshair";
+      }
+      el.penBtn.classList.toggle("active", state.tool === "pen");
+      el.eraserBtn.classList.toggle("active", state.tool === "eraser");
+      el.handBtn.classList.toggle("active", state.tool === "hand");
+      swatchNodes.forEach((n) => n.classList.toggle("active", n.dataset.color === state.color));
+      el.undoBtn.disabled = history.length <= 1;
+      el.redoBtn.disabled = redo.length === 0;
+    }
+
+    function setTool(tool) {
+      state.tool = tool;
+      syncStatus();
+    }
+
+    function setSize(size) {
+      state.size = Math.max(1, Math.min(40, Number(size)));
+      syncStatus();
+    }
+
+    function applyZoom() {
+      el.paper.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom / 100})`;
+    }
+
+    function setZoom(nextZoom) {
+      state.zoom = Math.max(50, Math.min(200, Math.round(nextZoom)));
+      applyZoom();
+      syncStatus();
+    }
+
+    function isPanMode() {
+      return state.tool === "hand" || state.spacePan;
+    }
+
+    function openShortcutsModal() {
+      el.shortcutsModal.classList.add("open");
+      el.shortcutsModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeShortcutsModal() {
+      el.shortcutsModal.classList.remove("open");
+      el.shortcutsModal.setAttribute("aria-hidden", "true");
+    }
+
+    function openIntroModal() {
+      el.introModal.classList.add("open");
+      el.introModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeIntroModal() {
+      if (el.introSkip.checked) {
+        localStorage.setItem(INTRO_STORAGE_KEY, "1");
+      }
+      el.introModal.classList.remove("open");
+      el.introModal.setAttribute("aria-hidden", "true");
+    }
+
+    function setColor(color) {
+      state.color = color;
+      el.colorPicker.value = color;
+      if (state.tool === "eraser") state.tool = "pen";
+      syncStatus();
+    }
+
+    function setPalette(name) {
+      if (!PALETTES[name]) return;
+      state.palette = name;
+      el.paletteSelect.value = name;
+      renderSwatches();
+      if (!PALETTES[name].includes(state.color)) setColor(PALETTES[name][0]);
+      syncStatus();
+    }
+
+    function clearCanvas() {
+      ctx.save();
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, el.canvas.width, el.canvas.height);
+      ctx.restore();
+    }
+
+    function snapshot() {
+      return ctx.getImageData(0, 0, el.canvas.width, el.canvas.height);
+    }
+
+    function restore(imageData) {
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    function commitHistory() {
+      history.push(snapshot());
+      if (history.length > MAX_HISTORY) history.shift();
+      redo = [];
+      syncStatus();
+    }
+
+    function resetHistory() {
+      history = [snapshot()];
+      redo = [];
+      syncStatus();
+    }
+
+    function undo() {
+      if (history.length <= 1) return;
+      redo.push(history.pop());
+      restore(history[history.length - 1]);
+      syncStatus();
+    }
+
+    function redoAction() {
+      if (!redo.length) return;
+      const next = redo.pop();
+      history.push(next);
+      restore(next);
+      syncStatus();
+    }
+
+    function resizePaper(preserveDrawing = true) {
+      const prevW = el.canvas.width;
+      const prevH = el.canvas.height;
+      let prevData = null;
+      if (preserveDrawing && prevW && prevH) {
+        const temp = document.createElement("canvas");
+        temp.width = prevW;
+        temp.height = prevH;
+        temp.getContext("2d").drawImage(el.canvas, 0, 0);
+        prevData = temp;
+      }
+
+      const stageRect = el.stage.getBoundingClientRect();
+      const ratio = 4 / 3;
+      const maxW = Math.max(240, Math.floor(stageRect.width - 12));
+      const maxH = Math.max(240, Math.floor(stageRect.height - 12));
+      let w = Math.min(maxW, Math.floor(maxH * ratio));
+      let h = Math.floor(w / ratio);
+      if (h > maxH) {
+        h = maxH;
+        w = Math.floor(h * ratio);
+      }
+
+      el.paper.style.width = `${w}px`;
+      el.paper.style.height = `${h}px`;
+      applyZoom();
+      el.canvas.width = w;
+      el.canvas.height = h;
+      clearCanvas();
+
+      if (prevData) ctx.drawImage(prevData, 0, 0, prevW, prevH, 0, 0, w, h);
+      resetHistory();
+    }
+
+    function renderSwatches() {
+      el.swatches.innerHTML = "";
+      swatchNodes = [];
+      PALETTES[state.palette].forEach((hex) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "swatch";
+        b.style.background = hex;
+        b.dataset.color = hex;
+        b.setAttribute("aria-label", `Color ${hex}`);
+        b.addEventListener("click", () => setColor(hex));
+        el.swatches.appendChild(b);
+        swatchNodes.push(b);
+      });
+    }
+
+    function drawSegment(x0, y0, x1, y1, pressure = 1) {
+      ctx.save();
+      ctx.globalCompositeOperation = state.tool === "eraser" ? "destination-out" : "source-over";
+      ctx.strokeStyle = state.color;
+      ctx.lineWidth = state.size * pressure;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawDot(x, y, pressure = 1) {
+      ctx.save();
+      ctx.globalCompositeOperation = state.tool === "eraser" ? "destination-out" : "source-over";
+      ctx.fillStyle = state.color;
+      const radius = Math.max(0.5, (state.size * pressure) / 2);
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function effectivePressure(evt) {
+      return evt.pressure && evt.pressure > 0 ? evt.pressure : 1;
+    }
+
+    function localPoint(evt) {
+      const r = el.canvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(el.canvas.width, (evt.clientX - r.left) * (el.canvas.width / r.width))),
+        y: Math.max(0, Math.min(el.canvas.height, (evt.clientY - r.top) * (el.canvas.height / r.height)))
+      };
+    }
+
+    function setupCanvasInput() {
+      el.canvas.addEventListener("pointerdown", (evt) => {
+        evt.preventDefault();
+        if (state.drawing || state.panning) return;
+        if (isPanMode()) {
+          state.panning = true;
+          state.activePointerId = evt.pointerId;
+          state.panStartClientX = evt.clientX;
+          state.panStartClientY = evt.clientY;
+          state.panStartX = state.panX;
+          state.panStartY = state.panY;
+          el.canvas.setPointerCapture(evt.pointerId);
+          syncStatus();
+          return;
+        }
+        const p = localPoint(evt);
+        state.drawing = true;
+        state.activePointerId = evt.pointerId;
+        state.lastX = p.x;
+        state.lastY = p.y;
+        drawDot(p.x, p.y, effectivePressure(evt));
+        el.canvas.setPointerCapture(evt.pointerId);
+      });
+
+      el.canvas.addEventListener("pointermove", (evt) => {
+        if (state.panning && evt.pointerId === state.activePointerId) {
+          evt.preventDefault();
+          state.panX = state.panStartX + (evt.clientX - state.panStartClientX);
+          state.panY = state.panStartY + (evt.clientY - state.panStartClientY);
+          applyZoom();
+          return;
+        }
+        if (!state.drawing || evt.pointerId !== state.activePointerId) return;
+        evt.preventDefault();
+        const p = localPoint(evt);
+        const pressure = effectivePressure(evt);
+        drawSegment(state.lastX, state.lastY, p.x, p.y, pressure);
+        state.lastX = p.x;
+        state.lastY = p.y;
+      });
+
+      const endStroke = (evt) => {
+        if (evt.pointerId !== state.activePointerId) return;
+        evt.preventDefault();
+        if (el.canvas.hasPointerCapture(evt.pointerId)) {
+          el.canvas.releasePointerCapture(evt.pointerId);
+        }
+        if (state.panning) {
+          state.panning = false;
+        } else if (state.drawing) {
+          state.drawing = false;
+          commitHistory();
+        }
+        state.activePointerId = null;
+        syncStatus();
+      };
+      el.canvas.addEventListener("pointerup", endStroke);
+      el.canvas.addEventListener("pointercancel", endStroke);
+    }
+
+    function savePng() {
+      try {
+        const link = document.createElement("a");
+        link.href = el.canvas.toDataURL("image/png");
+        link.download = `processing-canvas-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } catch (err) {
+        console.warn("Save blocked. Use capture help.");
+      }
+    }
+
+    function resetApp() {
+      state.tool = DEFAULTS.tool;
+      state.color = DEFAULTS.color;
+      state.palette = DEFAULTS.palette;
+      state.size = DEFAULTS.size;
+      state.zoom = DEFAULTS.zoom;
+      state.panX = 0;
+      state.panY = 0;
+      setPalette(state.palette);
+      resizePaper(false);
+      syncStatus();
+    }
+
+    function setupPaletteSelect() {
+      Object.keys(PALETTES).forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        el.paletteSelect.appendChild(opt);
+      });
+    }
+
+    function wireEvents() {
+      el.penBtn.addEventListener("click", () => setTool("pen"));
+      el.eraserBtn.addEventListener("click", () => setTool("eraser"));
+      el.handBtn.addEventListener("click", () => setTool("hand"));
+      el.zoomOutBtn.addEventListener("click", () => setZoom(state.zoom - 10));
+      el.zoomInBtn.addEventListener("click", () => setZoom(state.zoom + 10));
+      el.zoomResetBtn.addEventListener("click", () => {
+        state.panX = 0;
+        state.panY = 0;
+        setZoom(100);
+      });
+      el.shortcutsBtn.addEventListener("click", openShortcutsModal);
+      el.shortcutsCloseBtn.addEventListener("click", closeShortcutsModal);
+      el.shortcutsModal.addEventListener("click", (evt) => {
+        if (evt.target === el.shortcutsModal) closeShortcutsModal();
+      });
+      el.introStartBtn.addEventListener("click", closeIntroModal);
+      el.introModal.addEventListener("click", (evt) => {
+        if (evt.target === el.introModal) closeIntroModal();
+      });
+      el.paletteSelect.addEventListener("change", (e) => setPalette(e.target.value));
+      el.colorPicker.addEventListener("input", (e) => setColor(e.target.value));
+      el.sizeSlider.addEventListener("input", (e) => setSize(e.target.value));
+      const bindHoldAdjust = (button, delta) => {
+        let holdTimer = null;
+        let repeatTimer = null;
+        const stop = () => {
+          if (holdTimer) clearTimeout(holdTimer);
+          if (repeatTimer) clearInterval(repeatTimer);
+          holdTimer = null;
+          repeatTimer = null;
+        };
+        const start = (evt) => {
+          evt.preventDefault();
+          setSize(state.size + delta);
+          holdTimer = setTimeout(() => {
+            repeatTimer = setInterval(() => setSize(state.size + delta), 70);
+          }, 320);
+        };
+        button.addEventListener("pointerdown", start);
+        button.addEventListener("pointerup", stop);
+        button.addEventListener("pointerleave", stop);
+        button.addEventListener("pointercancel", stop);
+      };
+      bindHoldAdjust(el.sizeDownBtn, -1);
+      bindHoldAdjust(el.sizeUpBtn, 1);
+      el.undoBtn.addEventListener("click", undo);
+      el.redoBtn.addEventListener("click", redoAction);
+      el.saveBtn.addEventListener("click", savePng);
+      el.clearBtn.addEventListener("click", () => {
+        clearCanvas();
+        commitHistory();
+      });
+      el.resetBtn.addEventListener("click", resetApp);
+
+      window.addEventListener("resize", () => resizePaper(true));
+      const stageResizeObserver = new ResizeObserver(() => resizePaper(true));
+      stageResizeObserver.observe(el.stage);
+      document.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
+        if (tag === "input" || tag === "select" || tag === "textarea") return;
+        if (key === "escape" && el.shortcutsModal.classList.contains("open")) {
+          closeShortcutsModal();
+          return;
+        }
+        if (key === "escape" && el.introModal.classList.contains("open")) {
+          closeIntroModal();
+          return;
+        }
+
+        if ((e.metaKey || e.ctrlKey) && key === "z") {
+          e.preventDefault();
+          if (e.shiftKey) redoAction();
+          else undo();
+          return;
+        }
+        if ((e.metaKey || e.ctrlKey) && key === "s") {
+          e.preventDefault();
+          savePng();
+          return;
+        }
+
+        if (key === "p") setTool("pen");
+        if (key === "e") setTool("eraser");
+        if (key === "h") setTool("hand");
+        if (e.code === "Space") {
+          e.preventDefault();
+          state.spacePan = true;
+          syncStatus();
+        }
+        if (key === "c") {
+          clearCanvas();
+          commitHistory();
+        }
+        if (key === "r") resetApp();
+        if (key === "-" || key === "_") setZoom(state.zoom - 10);
+        if (key === "=" || key === "+") setZoom(state.zoom + 10);
+        if (key === "[") setSize(state.size - 1);
+        if (key === "]") setSize(state.size + 1);
+      });
+      document.addEventListener("keyup", (e) => {
+        if (e.code === "Space") {
+          state.spacePan = false;
+          if (!state.panning && state.tool === "hand") setTool("pen");
+          else syncStatus();
+        }
+      });
+    }
+
+    function init() {
+      setupPaletteSelect();
+      renderSwatches();
+      setPalette(DEFAULTS.palette);
+      setColor(DEFAULTS.color);
+      setSize(DEFAULTS.size);
+      setZoom(DEFAULTS.zoom);
+      setupCanvasInput();
+      wireEvents();
+      resizePaper(false);
+      syncStatus();
+      if (localStorage.getItem(INTRO_STORAGE_KEY) !== "1") openIntroModal();
+    }
+
+    init();
+  </script>
+</body>
+</html>
