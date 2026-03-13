@@ -28,6 +28,24 @@ export class UI {
   setUndoRedoState(canUndo, canRedo) {
     this.els.undoBtn.disabled = !canUndo;
     this.els.redoBtn.disabled = !canRedo;
+    if (this.els.mUndoBtn) this.els.mUndoBtn.disabled = !canUndo;
+    if (this.els.mRedoBtn) this.els.mRedoBtn.disabled = !canRedo;
+  }
+
+  renderDrawPanelSwatches(onColorSelect) {
+    const { els, state } = this;
+    if (!els.dpSwatches) return;
+    els.dpSwatches.innerHTML = '';
+    PALETTES[state.palette].forEach((hex) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dp-swatch';
+      b.style.background = hex;
+      b.dataset.color = hex;
+      b.setAttribute('aria-label', `Color ${hex}`);
+      b.addEventListener('click', () => onColorSelect(hex));
+      els.dpSwatches.appendChild(b);
+    });
   }
 
   renderSwatches(onColorSelect) {

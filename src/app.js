@@ -51,6 +51,23 @@ export class DrawingApp {
       stage:            document.getElementById('canvas-stage'),
       paper:            document.getElementById('paper'),
       canvas:           document.getElementById('draw-canvas'),
+      // Mobile
+      mUndoBtn:         document.getElementById('m-undo-btn'),
+      mRedoBtn:         document.getElementById('m-redo-btn'),
+      mDrawBtn:         document.getElementById('m-draw-btn'),
+      mSaveBtn:         document.getElementById('m-save-btn'),
+      drawPanel:        document.getElementById('draw-panel'),
+      drawPanelClose:   document.getElementById('draw-panel-close'),
+      drawPanelDone:    document.getElementById('draw-panel-done'),
+      drawPanelBack:    document.getElementById('draw-panel-backdrop'),
+      dpPenBtn:         document.getElementById('dp-pen-btn'),
+      dpEraserBtn:      document.getElementById('dp-eraser-btn'),
+      dpSwatches:       document.getElementById('dp-swatches'),
+      dpColorPicker:    document.getElementById('dp-color-picker'),
+      dpSizeSlider:     document.getElementById('dp-size-slider'),
+      dpSizeLabel:      document.getElementById('dp-size-label'),
+      dpSizeDown:       document.getElementById('dp-size-down'),
+      dpSizeUp:         document.getElementById('dp-size-up'),
     };
 
     const { canvas, paper, stage } = this.els;
@@ -107,6 +124,7 @@ export class DrawingApp {
   _sync() {
     this.ui.sync();
     this.ui.setUndoRedoState(this.history.canUndo, this.history.canRedo);
+    if (this.els.drawPanel?.classList.contains('open')) this._syncDrawPanel();
   }
 
   _isPanMode() {
@@ -126,6 +144,35 @@ export class DrawingApp {
     this.dc.resize(false);
     this.history.reset();
     this._sync();
+  }
+
+  // ── Mobile draw panel ─────────────────────────────────────────────────────
+
+  _openDrawPanel() {
+    this.ui.renderDrawPanelSwatches((hex) => this._setColor(hex));
+    this.els.drawPanel.classList.add('open');
+    this.els.drawPanel.setAttribute('aria-hidden', 'false');
+    this.els.drawPanelBack.classList.add('open');
+    this._syncDrawPanel();
+  }
+
+  _closeDrawPanel() {
+    this.els.drawPanel.classList.remove('open');
+    this.els.drawPanel.setAttribute('aria-hidden', 'true');
+    this.els.drawPanelBack.classList.remove('open');
+  }
+
+  _syncDrawPanel() {
+    const { els, state } = this;
+    els.dpPenBtn.classList.toggle('active',    state.tool === 'pen');
+    els.dpEraserBtn.classList.toggle('active', state.tool === 'eraser');
+    els.dpColorPicker.value         = state.color;
+    els.dpSizeSlider.value          = String(state.size);
+    els.dpSizeLabel.textContent     = `${state.size}px`;
+    // Sync dp swatches active state
+    els.dpSwatches.querySelectorAll('.dp-swatch').forEach((n) => {
+      n.classList.toggle('active', n.dataset.color === state.color);
+    });
   }
 
   // ── Canvas pointer input ──────────────────────────────────────────────────
@@ -224,6 +271,25 @@ export class DrawingApp {
     els.clearBtn.addEventListener('click', () => { dc.clearCanvas(); this.history.commit(); this._sync(); });
     els.resetBtn.addEventListener('click', () => this._resetApp());
 
+    // Mobile toolbar
+    if (els.mUndoBtn) {
+      els.mUndoBtn.addEventListener('click', () => { this.history.undo(); this._sync(); });
+      els.mRedoBtn.addEventListener('click', () => { this.history.redo(); this._sync(); });
+      els.mSaveBtn.addEventListener('click', () => dc.savePng());
+      els.mDrawBtn.addEventListener('click', () => this._openDrawPanel());
+
+      els.drawPanelClose.addEventListener('click',  () => this._closeDrawPanel());
+      els.drawPanelDone.addEventListener('click',   () => this._closeDrawPanel());
+      els.drawPanelBack.addEventListener('click',   () => this._closeDrawPanel());
+
+      els.dpPenBtn.addEventListener('click',    () => this._setTool('pen'));
+      els.dpEraserBtn.addEventListener('click', () => this._setTool('eraser'));
+      els.dpColorPicker.addEventListener('input', (e) => this._setColor(e.target.value));
+      els.dpSizeSlider.addEventListener('input',  (e) => this._setSize(e.target.value));
+      this._bindHoldAdjust(els.dpSizeDown, -1);
+      this._bindHoldAdjust(els.dpSizeUp,    1);
+    }
+
     window.addEventListener('resize', () => { dc.resize(true); this.history.reset(); this._sync(); });
     new ResizeObserver(() => { dc.resize(true); this.history.reset(); this._sync(); }).observe(els.stage);
 
@@ -266,8 +332,9 @@ export class DrawingApp {
     const { els, dc, ui, state: s } = this;
 
     if (key === 'escape') {
-      if (els.shortcutsModal.classList.contains('open')) { ui.closeShortcutsModal(); return; }
-      if (els.introModal.classList.contains('open'))     { ui.closeIntroModal();     return; }
+      if (els.drawPanel?.classList.contains('open'))       { this._closeDrawPanel();     return; }
+      if (els.shortcutsModal.classList.contains('open'))   { ui.closeShortcutsModal();   return; }
+      if (els.introModal.classList.contains('open'))       { ui.closeIntroModal();        return; }
     }
     if ((e.metaKey || e.ctrlKey) && key === 'z') {
       e.preventDefault();

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Art Studio</title>
   <style>
     :root {
@@ -429,6 +429,299 @@
         max-width: 48vw;
       }
     }
+
+    /* ── Mobile UI ─────────────────────────────────────────────────── */
+
+    .mobile-bar {
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 0; }
+
+      .app {
+        border-radius: 0;
+        border: none;
+        width: 100%;
+        height: 100%;
+        grid-template-rows: 1fr;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+      }
+
+      .rail, .dock { display: none; }
+
+      .canvas-stage {
+        padding: 0;
+        border-radius: 0;
+        padding-bottom: 72px;
+      }
+
+      .paper {
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .canvas-zoom { display: none; }
+
+      /* Mobile bottom bar */
+      .mobile-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 72px;
+        background: rgba(7, 18, 33, 0.97);
+        border-top: 1px solid var(--panel-border);
+        backdrop-filter: blur(16px);
+        z-index: 100;
+      }
+
+      .mobile-bar .m-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+        padding: 0;
+        transition: color 120ms ease;
+      }
+
+      .mobile-bar .m-btn:disabled { opacity: 0.35; }
+      .mobile-bar .m-btn:not(:disabled):active { color: var(--accent); }
+
+      .mobile-bar .m-btn svg {
+        width: 24px;
+        height: 24px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .m-btn-draw {
+        color: var(--accent) !important;
+      }
+
+      /* Draw panel */
+      .draw-panel-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 200;
+      }
+      .draw-panel-backdrop.open { display: block; }
+
+      .draw-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 88vh;
+        background: rgba(7, 18, 33, 0.99);
+        border-top: 1px solid var(--panel-border);
+        border-radius: 20px 20px 0 0;
+        z-index: 300;
+        transform: translateY(100%);
+        transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .draw-panel.open { transform: translateY(0); }
+
+      .draw-panel-handle {
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255,255,255,0.2);
+        margin: 12px auto 0;
+        flex-shrink: 0;
+      }
+
+      .draw-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px 12px;
+        flex-shrink: 0;
+      }
+
+      .draw-panel-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .draw-panel-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .draw-panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 20px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .dp-section-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+
+      /* Tool buttons */
+      .dp-tools {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .dp-tool-btn {
+        height: 56px;
+        border-radius: 14px;
+        border: 1.5px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.06);
+        color: var(--muted);
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 120ms ease;
+      }
+
+      .dp-tool-btn.active {
+        border-color: var(--accent);
+        background: rgba(100,228,215,0.15);
+        color: var(--accent);
+      }
+
+      /* Color swatches in panel */
+      .dp-swatches {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
+      }
+
+      .dp-swatch {
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.25);
+        cursor: pointer;
+        transition: transform 120ms ease;
+      }
+
+      .dp-swatch.active {
+        transform: scale(1.15);
+        border-color: #fff;
+        box-shadow: 0 0 0 2px rgba(100,228,215,0.6);
+      }
+
+      /* Color picker row */
+      .dp-color-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 10px;
+      }
+
+      .dp-color-picker-label {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .dp-picker {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.24);
+        background: transparent;
+        padding: 3px;
+        cursor: pointer;
+      }
+
+      /* Size control */
+      .dp-size-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .dp-size-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.22);
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+        font-size: 1.4rem;
+        font-weight: 300;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .dp-size-slider {
+        flex: 1;
+        accent-color: var(--accent);
+        height: 4px;
+      }
+
+      .dp-size-val {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text);
+        min-width: 36px;
+        text-align: right;
+      }
+
+      /* Done button */
+      .draw-panel-done {
+        margin: 0 20px 24px;
+        height: 54px;
+        border-radius: 16px;
+        background: var(--accent);
+        color: #071221;
+        font-size: 1rem;
+        font-weight: 800;
+        border: none;
+        cursor: pointer;
+        flex-shrink: 0;
+        letter-spacing: 0.01em;
+      }
+    }
   </style>
 </head>
 <body>
@@ -506,6 +799,66 @@
       </div>
     </div>
   </div>
+  <!-- Mobile bottom bar -->
+  <div class="mobile-bar" id="mobile-bar">
+    <button class="m-btn" id="m-undo-btn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 0 1 0 10H9"/><polyline points="3 6 3 10 7 10"/></svg>
+      Undo
+    </button>
+    <button class="m-btn" id="m-redo-btn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 0 0 0 10h4"/><polyline points="21 6 21 10 17 10"/></svg>
+      Redo
+    </button>
+    <button class="m-btn m-btn-draw" id="m-draw-btn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Draw
+    </button>
+    <button class="m-btn" id="m-save-btn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Save
+    </button>
+  </div>
+
+  <!-- Draw settings panel -->
+  <div class="draw-panel-backdrop" id="draw-panel-backdrop"></div>
+  <div class="draw-panel" id="draw-panel" aria-hidden="true">
+    <div class="draw-panel-handle"></div>
+    <div class="draw-panel-header">
+      <span class="draw-panel-title">Draw Settings</span>
+      <button class="draw-panel-close" id="draw-panel-close" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="draw-panel-body">
+      <!-- Tool -->
+      <div>
+        <p class="dp-section-label">Tool</p>
+        <div class="dp-tools">
+          <button class="dp-tool-btn" id="dp-pen-btn" type="button">✏️ Pen</button>
+          <button class="dp-tool-btn" id="dp-eraser-btn" type="button">⬜ Eraser</button>
+        </div>
+      </div>
+      <!-- Color -->
+      <div>
+        <p class="dp-section-label">Color</p>
+        <div class="dp-swatches" id="dp-swatches"></div>
+        <div class="dp-color-row">
+          <span class="dp-color-picker-label">Custom</span>
+          <input class="dp-picker" type="color" id="dp-color-picker" value="#111111" />
+        </div>
+      </div>
+      <!-- Size -->
+      <div>
+        <p class="dp-section-label">Brush Size</p>
+        <div class="dp-size-row">
+          <button class="dp-size-btn" id="dp-size-down" type="button">−</button>
+          <input class="dp-size-slider" type="range" id="dp-size-slider" min="1" max="40" value="8" />
+          <span class="dp-size-val" id="dp-size-label">8px</span>
+          <button class="dp-size-btn" id="dp-size-up" type="button">+</button>
+        </div>
+      </div>
+    </div>
+    <button class="draw-panel-done" id="draw-panel-done" type="button">Done</button>
+  </div>
+
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
